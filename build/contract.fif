@@ -1,0 +1,89 @@
+"Asm.fif" include
+// automatically generated from `/Users/Aleksandr/Library/Application Support/toncli/func-libs/stdlib-tests.func` `/Users/Aleksandr/TONProjects/LearnProjects/FlagContract/wallet/func/code.func` 
+PROGRAM{
+  DECLPROC load_data
+  DECLPROC save_data
+  DECLPROC parse_sender_address
+  DECLPROC recv_internal
+  load_data PROC:<{
+    // 
+    c4 PUSH	//  _1
+    CTOS	//  ds
+    LDMSGADDR	//  _3 ds
+    LDMSGADDR	//  _3 _10 _9
+    DROP	//  _3 _5
+  }>
+  save_data PROC:<{
+    //  manager_address memorized_address
+    NEWC
+    ROT	//  memorized_address _2 manager_address
+    STSLICER	//  memorized_address _3
+    SWAP	//  _3 memorized_address
+    STSLICER	//  _4
+    ENDC	//  _5
+    c4 POP
+  }>
+  parse_sender_address PROC:<{
+    //  in_msg_full
+    CTOS	//  cs
+    4 LDU	//  _11 _10
+    NIP	//  cs
+    LDMSGADDR	//  _13 _12
+    DROP	//  sender_address
+  }>
+  recv_internal PROC:<{
+    //  balance msg_value in_msg_full in_msg_body
+    2 2 BLKDROP2	//  in_msg_full in_msg_body
+    32 LDU	//  in_msg_full op in_msg_body
+    64 LDU	//  in_msg_full op query in_msg_body
+    s0 s3 XCHG	//  in_msg_body op query in_msg_full
+    parse_sender_address INLINECALLDICT	//  in_msg_body op query sender_address
+    s2 PUSH	//  in_msg_body op query sender_address op
+    1 EQINT	//  in_msg_body op query sender_address _15
+    IF:<{	//  in_msg_body op query sender_address
+      2 1 BLKDROP2	//  in_msg_body sender_address
+      load_data INLINECALLDICT	//  in_msg_body sender_address _71 _72
+      DROP	//  in_msg_body sender_address manager_address
+      s0 s1 PUXC	//  in_msg_body manager_address manager_address sender_address
+      SDEQ	//  in_msg_body manager_address _20
+      NOT	//  in_msg_body manager_address _21
+      1001 THROWIF
+      SWAP	//  manager_address in_msg_body
+      LDMSGADDR	//  manager_address _74 _73
+      DROP	//  manager_address new_memorized_address
+      save_data INLINECALLDICT
+    }>ELSE<{	//  in_msg_body op query sender_address
+      s3 POP	//  sender_address op query
+      SWAP	//  sender_address query op
+      2 EQINT	//  sender_address query _28
+      IF:<{	//  sender_address query
+        load_data INLINECALLDICT	//  sender_address query manager_address memorized_address
+        3 PUSHINT	//  sender_address query manager_address memorized_address _33=3
+        0 PUSHINT	//  sender_address query manager_address memorized_address _33=3 _34=0
+        16 PUSHINT	//  sender_address query manager_address memorized_address _33=3 _34=0 _35=16
+        NEWC	//  sender_address query manager_address memorized_address _33=3 _34=0 _35=16 _36
+        6 STU	//  sender_address query manager_address memorized_address _33=3 _34=0 _38
+        s0 s6 XCHG2	//  _34=0 query manager_address memorized_address _33=3 _38 sender_address
+        STSLICER	//  _34=0 query manager_address memorized_address _33=3 _39
+        s5 PUSH	//  _34=0 query manager_address memorized_address _33=3 _39 _40=0
+        STGRAMS	//  _34=0 query manager_address memorized_address _33=3 _41
+        s1 s5 XCHG	//  _33=3 query manager_address memorized_address _34=0 _41
+        107 STU	//  _33=3 query manager_address memorized_address _55
+        s1 s4 XCHG	//  memorized_address query manager_address _33=3 _55
+        32 STU	//  memorized_address query manager_address _57
+        s1 s2 XCHG	//  memorized_address manager_address query _57
+        64 STU	//  memorized_address manager_address _59
+        SWAP	//  memorized_address _59 manager_address
+        STSLICER	//  memorized_address _60
+        SWAP	//  _60 memorized_address
+        STSLICER	//  _61
+        ENDC	//  msg
+        64 PUSHINT	//  msg _63=64
+        SENDRAWMSG
+      }>ELSE<{	//  sender_address query
+        2DROP	// 
+        3 THROW
+      }>
+    }>
+  }>
+}END>c

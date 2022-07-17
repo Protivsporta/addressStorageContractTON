@@ -1,0 +1,300 @@
+int equal_slices(slice a, slice b) asm "SDEQ";
+
+;; Test #1 || It should save new memorized address
+
+[int, tuple, cell, tuple, int] test_example_data() method_id(0) {
+    int function_selector = 0;
+
+    cell manager_address = begin_cell()
+                                .store_uint(1, 2)
+                                .store_uint(5, 9)
+                                .store_uint(1, 5)
+                                .end_cell();
+
+    cell stored_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(2, 5)
+                            .end_cell();
+
+    slice message_body = begin_cell()
+                            .store_uint(1, 32)
+                            .store_uint(12345, 64)
+                            .store_slice(stored_address.begin_parse())
+                            .end_cell()
+                            .begin_parse();
+
+    cell message = begin_cell()
+                    .store_uint(0x6, 4)
+                    .store_slice(manager_address.begin_parse())
+                    .store_uint(0, 2)
+                    .store_grams(100)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_slice(message_body)
+                    .end_cell();
+
+    tuple stack = unsafe_tuple([12345, 100, message, message_body]);
+
+    cell data = begin_cell()
+                    .store_slice(manager_address.begin_parse())
+                    .store_uint(0, 2)
+                    .end_cell();
+    
+    return [function_selector, stack, data, get_c7(), null()];
+}
+
+_ test_example(int exit_code, cell data, tuple stack, cell actions, int gas) method_id(1) {
+    throw_if(100, exit_code != 0);
+
+    slice manager_address = begin_cell()  ;; changed logic here
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(1, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice stored_address = begin_cell()  ;; changed logic here
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(2, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice stored = data.begin_parse();
+    throw_if(101, ~ equal_slices(stored~load_msg_addr(), manager_address));
+    throw_if(102, ~ equal_slices(stored~load_msg_addr(), stored_address));
+    stored.end_parse();
+}
+
+;; Test #2 || Should throw because of only manager can change stored address
+
+[int, tuple, cell, tuple, int] only_manager_can_change_data() method_id(2) {
+    int function_selector = 0;
+
+    slice manager_address = begin_cell()
+                                .store_uint(1, 2)
+                                .store_uint(5, 9)
+                                .store_uint(1, 5)
+                                .end_cell()
+                                .begin_parse();
+
+    slice stored_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(2, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice sender_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(3, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice message_body = begin_cell()
+                            .store_uint(1, 32)
+                            .store_uint(12345, 64)
+                            .store_slice(stored_address)
+                            .end_cell()
+                            .begin_parse();
+
+    cell message = begin_cell()
+		.store_uint(0x6, 4)
+		.store_slice(sender_address) 
+		.store_uint(0, 2) 
+		.store_grams(100)
+		.store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+		.store_slice(message_body)
+		.end_cell();
+
+    tuple stack = unsafe_tuple([12345, 100, message, message_body]);
+
+    cell data = begin_cell()
+                    .store_slice(manager_address)
+                    .store_uint(0, 2)
+                    .end_cell();
+
+    return [function_selector, stack, data, get_c7(), null()];    
+}
+
+_ only_manager_can_change(int exit_code, cell data, tuple stack, cell actions, int gas) method_id(3) {
+    throw_if(100, exit_code == 0);
+
+    slice manager_address = begin_cell()
+                                .store_uint(1, 2)
+                                .store_uint(5, 9)
+                                .store_uint(1, 5)
+                                .end_cell()
+                                .begin_parse();
+
+    slice stored_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(2, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice stored = data.begin_parse();
+
+    throw_if(101, ~ equal_slices(manager_address, stored~load_msg_addr()));
+    throw_if(102, stored~load_uint(2) != 0);
+}
+
+;; Test #3 || Should get manager address and stored address
+
+[int, tuple, cell, tuple, int] query_data() method_id(4) {
+    int function_selector = 0;
+
+    slice manager_address = begin_cell()
+                                .store_uint(1, 2)
+                                .store_uint(5, 9)
+                                .store_uint(1, 5)
+                                .end_cell()
+                                .begin_parse();
+
+    slice stored_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(2, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice sender_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(3, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice message_body = begin_cell()
+                            .store_uint(2, 32)
+                            .store_uint(12345, 64)
+                            .store_slice(stored_address)
+                            .end_cell()
+                            .begin_parse();
+
+    cell message = begin_cell()
+		.store_uint(0x6, 4)
+		.store_slice(sender_address) 
+		.store_uint(0, 2) 
+		.store_grams(100)
+		.store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+		.store_slice(message_body)
+		.end_cell();
+
+    tuple stack = unsafe_tuple([12345, 100, message, message_body]);
+
+    cell data = begin_cell()
+                    .store_slice(manager_address)
+                    .store_slice(stored_address)
+                    .end_cell();
+
+    return [function_selector, stack, data, get_c7(), null()]; 
+}
+
+_ query(int exit_code, cell data, tuple stack, cell actions, int gas) method_id(5) {
+    throw_if(100, exit_code != 0);
+
+    slice manager_address = begin_cell()
+                                .store_uint(1, 2)
+                                .store_uint(5, 9)
+                                .store_uint(1, 5)
+                                .end_cell()
+                                .begin_parse();
+
+    slice stored_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(2, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice sender_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(3, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice stored = data.begin_parse(); ;; want to change here
+    throw_if(101, ~ equal_slices(stored~load_msg_addr(), manager_address));
+    throw_if(102, ~ equal_slices(stored~load_msg_addr(), stored_address));
+    stored.end_parse();
+
+    slice all_actions = actions.begin_parse();
+    all_actions~load_ref();
+    slice msg = all_actions~load_ref().begin_parse();
+
+    throw_if(103, msg~load_uint(6) != 0x10);
+
+    slice send_to_address = msg~load_msg_addr();
+
+    throw_if(104, ~ equal_slices(sender_address, sender_address));
+    throw_if(105, msg~load_grams() != 0);
+    throw_if(106, msg~load_uint(1 + 4 + 4 + 64 + 32 + 1 + 1) != 0);
+
+    throw_if(107, msg~load_uint(32) != 3);
+    throw_if(108, msg~load_uint(64) != 12345);
+
+    throw_if(109, ~ equal_slices(manager_address, msg~load_msg_addr()));
+    throw_if(110, ~ equal_slices(stored_address, msg~load_msg_addr()));
+
+    msg.end_parse();
+}
+
+;; Test #4 || Should revert exception because of 3 operation code
+
+[int, tuple, cell, tuple, int] query_op3_data() method_id(6) {
+    int function_selector = 0;
+
+    slice manager_address = begin_cell()
+                                .store_uint(1, 2)
+                                .store_uint(5, 9)
+                                .store_uint(1, 5)
+                                .end_cell()
+                                .begin_parse();
+
+    slice stored_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(2, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice sender_address = begin_cell()
+                            .store_uint(1, 2)
+                            .store_uint(5, 9)
+                            .store_uint(3, 5)
+                            .end_cell()
+                            .begin_parse();
+
+    slice message_body = begin_cell()
+                            .store_uint(3, 32)
+                            .store_uint(12345, 64)
+                            .store_slice(stored_address)
+                            .end_cell()
+                            .begin_parse();
+   
+    cell message = begin_cell()
+		.store_uint(0x6, 4)
+		.store_slice(sender_address) 
+		.store_uint(0, 2) 
+		.store_grams(100)
+		.store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+		.store_slice(message_body)
+		.end_cell();
+
+    tuple stack = unsafe_tuple([12345, 100, message, message_body]);
+
+    cell data = begin_cell()
+                    .store_slice(manager_address)
+                    .store_slice(stored_address)
+                    .end_cell();
+
+    return [function_selector, stack, data, get_c7(), null()]; 
+}
+
+_ query_op3(int exit_code, cell data, tuple stack, cell actions, int gas) method_id(7) {
+    throw_if(100, exit_code == 0);
+}
